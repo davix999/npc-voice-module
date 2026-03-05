@@ -1,0 +1,17 @@
+{
+  "id": "npc-voice",
+  "title": "NPC Voice",
+  "description": "Bring your NPCs to life with AI-generated voices.",
+  "version": "0.1.0",
+  "compatibility": {
+    "minimum": "13",
+    "verified": "13"
+  },
+  "esmodules": ["main.js"],
+  "authors": [
+    {
+      "name": "davix999"
+    }
+  ],
+  "flags": {}
+}
