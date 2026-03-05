@@ -6,7 +6,7 @@ const MODULE_ID = 'npc-voice';
 
 // Your backend URL - we'll make this configurable later
 // For now point it at wherever the backend is running
-const BACKEND_URL = 'http://localhost:3000';
+const BACKEND_URL = 'https://abc123.ngrok-free.app';
 
 // Default voice ID - will be per-NPC configurable later
 const DEFAULT_VOICE_ID = 'ktrGUw7rURIQyMrQZqCu';
