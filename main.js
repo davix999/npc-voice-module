@@ -6,7 +6,7 @@ const MODULE_ID = 'npc-voice';
 
 // Your backend URL - we'll make this configurable later
 // For now point it at wherever the backend is running
-const BACKEND_URL = 'https://abc123.ngrok-free.app';
+const BACKEND_URL = 'https://unhuskable-jaylynn-geochronological.ngrok-free.dev';
 
 // Default voice ID - will be per-NPC configurable later
 const DEFAULT_VOICE_ID = 'ktrGUw7rURIQyMrQZqCu';
