@@ -36,7 +36,12 @@ Hooks.on('renderActorSheet', (sheet, html, data) => {
   `);
 
   // Inject into the sheet header
-  html.find('.window-header .window-title').after(button);
+ const header = html.find('.window-header');
+if (header.length) {
+  header.append(button);
+} else {
+  html.prepend(button);
+}
 
   // Handle click
   button.on('click', async (event) => {
