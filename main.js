@@ -3,12 +3,7 @@
 // ============================================
 
 const MODULE_ID = 'npc-voice';
-
-// Your backend URL - we'll make this configurable later
-// For now point it at wherever the backend is running
 const BACKEND_URL = 'https://unhuskable-jaylynn-geochronological.ngrok-free.dev';
-
-// Default voice ID - will be per-NPC configurable later
 const DEFAULT_VOICE_ID = 'ktrGUw7rURIQyMrQZqCu';
 
 // ============================================
@@ -19,45 +14,71 @@ Hooks.once('ready', () => {
 });
 
 // ============================================
-// Inject Speak button into any NPC actor sheet
-// Works across multiple game systems
+// V13 compatible hooks - catches both old and new sheet rendering
 // ============================================
 Hooks.on('renderActorSheet', (sheet, html, data) => {
+  injectSpeakButton(sheet, html);
+});
+
+Hooks.on('renderActorSheetV2', (sheet, html, data) => {
+  injectSpeakButton(sheet, $(html));
+});
+
+// ============================================
+// Inject Speak button into NPC sheets
+// ============================================
+function injectSpeakButton(sheet, html) {
   const actor = sheet.actor;
 
-  // Skip player characters - only target NPCs
+  // Skip player characters
   if (actor.type === 'character') return;
 
-  // Build the button
+  // Don't add button twice
+  if (html.find('.npc-voice-btn').length > 0) return;
+
   const button = $(`
-    <button type="button" class="npc-voice-btn" title="Speak as this NPC" style="margin: 4px;">
+    <button type="button" class="npc-voice-btn" 
+      title="Speak as this NPC" 
+      style="margin: 4px; cursor: pointer;">
       🎙️ Speak
     </button>
   `);
 
-  // Inject into the sheet header
- const header = html.find('.window-header');
-if (header.length) {
-  header.append(button);
-} else {
-  html.prepend(button);
-}
+  // Try multiple selectors to cover different sheet styles
+  const targets = [
+    '.window-header',
+    '.sheet-header',
+    '.actor-header',
+    'header.sheet-header',
+    '.npc-sheet header'
+  ];
 
-  // Handle click
+  let injected = false;
+  for (const selector of targets) {
+    const target = html.find(selector);
+    if (target.length > 0) {
+      target.append(button);
+      injected = true;
+      console.log(`${MODULE_ID} | Button injected via selector: ${selector}`);
+      break;
+    }
+  }
+
+  // Fallback - prepend to the whole sheet
+  if (!injected) {
+    html.prepend(button);
+    console.log(`${MODULE_ID} | Button injected via fallback`);
+  }
+
   button.on('click', async (event) => {
     event.preventDefault();
-
-    // Get stored voice ID for this NPC, fall back to default
+    event.stopPropagation();
     const voiceId = actor.getFlag(MODULE_ID, 'voiceId') || DEFAULT_VOICE_ID;
-
-    // Show dialogue input dialog
     const dialogue = await showDialogueInput(actor.name);
     if (!dialogue) return;
-
-    // Send to backend and play audio
     await speakDialogue(dialogue, voiceId, actor.name);
   });
-});
+}
 
 // ============================================
 // Show dialogue input dialog
@@ -112,7 +133,6 @@ async function speakDialogue(text, voiceId, npcName) {
       throw new Error(`Backend returned ${response.status}`);
     }
 
-    // Convert response to playable audio
     const audioBlob = await response.blob();
     const audioUrl = URL.createObjectURL(audioBlob);
     const audio = new Audio(audioUrl);
