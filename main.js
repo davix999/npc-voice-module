@@ -11,44 +11,31 @@ Hooks.once('ready', () => {
   startSheetWatcher();
 });
 
-// ============================================
-// Watch the DOM for any actor sheet opening
-// Works with ALL Foundry versions and systems
-// ============================================
 function startSheetWatcher() {
   const observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
       for (const node of mutation.addedNodes) {
         if (node.nodeType !== 1) continue;
-
-        // Check if this node is an actor sheet
         const sheet = node.classList?.contains('actor') ? node
-          : node.querySelector?.('.actor');
-
+          : node.classList?.contains('dnd5e') ? node
+          : node.classList?.contains('sheet') ? node
+          : node.querySelector?.('.actor, .dnd5e.sheet, [id*="ActorSheet"]');
         if (sheet) {
           console.log(`${MODULE_ID} | Actor sheet detected in DOM`);
-          setTimeout(() => tryInjectButton(sheet), 100);
+          setTimeout(() => tryInjectButton(sheet), 150);
         }
       }
     }
   });
-
   observer.observe(document.body, { childList: true, subtree: true });
   console.log(`${MODULE_ID} | DOM watcher started`);
 }
 
-// ============================================
-// Inject button into detected sheet
-// ============================================
 function tryInjectButton(sheetEl) {
-  // Don't inject twice
   if (sheetEl.querySelector('.npc-voice-btn')) return;
 
-  // Find the actor from Foundry's app registry
-  const appId = sheetEl.dataset?.appid || sheetEl.id?.replace('ActorSheet-', '');
   let actor = null;
 
-  // Search open windows for matching actor sheet
   for (const app of Object.values(ui.windows ?? {})) {
     if (app.actor && (app.element?.[0] === sheetEl || app.element === sheetEl)) {
       actor = app.actor;
@@ -56,14 +43,15 @@ function tryInjectButton(sheetEl) {
     }
   }
 
-  // V13 ApplicationV2 stores apps differently
   if (!actor) {
-    for (const app of foundry.applications?.instances?.values?.() ?? []) {
-      if (app.actor && app.element === sheetEl) {
-        actor = app.actor;
-        break;
+    try {
+      for (const app of foundry.applications?.instances?.values?.() ?? []) {
+        if (app.actor && app.element === sheetEl) {
+          actor = app.actor;
+          break;
+        }
       }
-    }
+    } catch(e) {}
   }
 
   if (!actor) {
@@ -71,7 +59,6 @@ function tryInjectButton(sheetEl) {
     return;
   }
 
-  // Skip player characters
   if (actor.type === 'character') return;
 
   console.log(`${MODULE_ID} | Injecting button for: ${actor.name}`);
@@ -91,15 +78,7 @@ function tryInjectButton(sheetEl) {
     await speakDialogue(dialogue, voiceId, actor.name);
   });
 
-  // Try to find a good header to inject into
-  const targets = [
-    '.window-header',
-    '.sheet-header',
-    '.actor-header',
-    'header',
-    '.window-title'
-  ];
-
+  const targets = ['.window-header', '.sheet-header', '.actor-header', 'header', '.window-title'];
   let injected = false;
   for (const selector of targets) {
     const target = sheetEl.querySelector(selector);
@@ -113,13 +92,10 @@ function tryInjectButton(sheetEl) {
 
   if (!injected) {
     sheetEl.prepend(button);
-    console.log(`${MODULE_ID} | Button injected via fallback prepend`);
+    console.log(`${MODULE_ID} | Button injected via fallback`);
   }
 }
 
-// ============================================
-// Show dialogue input dialog
-// ============================================
 async function showDialogueInput(npcName) {
   return new Promise((resolve) => {
     new Dialog({
@@ -127,11 +103,7 @@ async function showDialogueInput(npcName) {
       content: `
         <div style="padding: 8px 0;">
           <label>What does <strong>${npcName}</strong> say?</label>
-          <textarea 
-            id="npc-dialogue" 
-            style="width:100%; height:100px; margin-top:8px; resize:vertical;"
-            placeholder="Enter dialogue...">
-          </textarea>
+          <textarea id="npc-dialogue" style="width:100%; height:100px; margin-top:8px; resize:vertical;" placeholder="Enter dialogue..."></textarea>
         </div>
       `,
       buttons: {
@@ -151,30 +123,21 @@ async function showDialogueInput(npcName) {
   });
 }
 
-// ============================================
-// Call backend and play returned audio
-// ============================================
 async function speakDialogue(text, voiceId, npcName) {
   if (!text) return;
-
   try {
     ui.notifications.info(`${npcName} is speaking...`);
-
     const response = await fetch(`${BACKEND_URL}/speak`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text, voice_id: voiceId })
     });
-
     if (!response.ok) throw new Error(`Backend returned ${response.status}`);
-
     const audioBlob = await response.blob();
     const audioUrl = URL.createObjectURL(audioBlob);
     const audio = new Audio(audioUrl);
     audio.play();
-
     ui.notifications.info(`${npcName}: "${text}"`);
-
   } catch (error) {
     console.error(`${MODULE_ID} | Error:`, error);
     ui.notifications.error(`NPC Voice failed: ${error.message}`);
